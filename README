@@ -1,0 +1,18 @@
+== README
+
+BitShift is a Git client written in PyGTK.
+
+Just place the BitShift folder on your $PATH and you're good to go.
+
+Synopsis:
+
+bitshift.py [PATH_TO_A_GIT_REPO]
+
+
+Example usage:
+
+$ bitshift.py ~/Projects/pygtk
+
+or for more fun:
+
+$ bitshift.py ~/Projects/BitShift
