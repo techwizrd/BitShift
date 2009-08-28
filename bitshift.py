@@ -12,8 +12,12 @@ class BottomBar(gtk.HBox):
 		self.branches_l = gtk.Label("Branches: ")
 		self.branches = gtk.combo_box_new_text()
 		self.latest_b = gtk.Button("Latest", gtk.STOCK_REFRESH)
+		self.next_b = gtk.Button("Next", gtk.STOCK_GO_FORWARD)
+		self.previous_b = gtk.Button("Previous", gtk.STOCK_GO_BACK)
 		
+		self.pack_start(self.previous_b, False, False, 0)
 		self.pack_start(self.latest_b, False, False, 0)
+		self.pack_start(self.next_b, False, False, 0)
 		self.pack_end(self.branches, False, False, 0)
 		self.pack_end(self.branches_l, False, False, 0)
 	
@@ -83,6 +87,7 @@ class App:
 		
 		self.bottom_bar = BottomBar()
 		self.bottom_bar.populate_branches(self.repo)
+		self.bottom_bar.branches.set_active(0)
 		self.vbox.pack_end(self.bottom_bar, False, False, 0)
 		
 		self.main()
