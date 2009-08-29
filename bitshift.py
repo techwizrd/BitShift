@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, gtk, git, time, urllib, hashlib, pango
+import os, sys, gtk, git, time, urllib, hashlib, pango, gtksourceview
 
 from GtkSidebar import GtkSidebar
 
@@ -25,6 +25,21 @@ class BottomBar(gtk.HBox):
 		for head in repo.branches:
 			self.branches.append_text(head.name)
 
+class DiffView(gtk.ScrolledWindow):
+	def __init__(self):
+		gtk.ScrolledWindow.__init__(self)
+		self.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+		self.sourcebuffer = gtksourceview.SourceBuffer()
+		self.sourceview = gtksourceview.SourceView(self.sourcebuffer)
+		self.slm = gtksourceview.SourceLanguagesManager()
+		self.language = self.slm.get_language_from_mime_type("text/x-diff")
+		self.sourcebuffer.set_language(self.language)
+		self.sourcebuffer.set_highlight(True)
+		self.sourceview.set_show_line_numbers(True)
+		self.sourceview.set_smart_home_end(True)
+		self.sourceview.set_editable(False)
+		self.add(self.sourceview)
+
 class CommitView(gtk.Notebook):
 	def __init__(self):
 		gtk.Notebook.__init__(self)
@@ -35,7 +50,11 @@ class CommitView(gtk.Notebook):
 		
 		self.textbuffer = gtk.TextBuffer()
 		self.textview = gtk.TextView(self.textbuffer)
-		self.vbox.add(self.textview)
+		self.textview.set_editable(False)
+		self.vbox.pack_start(self.textview, False, False, 0)
+		self.diffview = DiffView()
+		self.vbox.pack_end(self.diffview, True, True, 0)
+		
 		self.textbuffer.create_tag("c-message",
 									weight = pango.WEIGHT_BOLD,
 									wrap_mode = gtk.WRAP_WORD,
@@ -53,8 +72,12 @@ class CommitView(gtk.Notebook):
 		iter = self.textbuffer.get_iter_at_offset (0)
 		self.textbuffer.insert_with_tags_by_name(iter, commit.message, "c-message")
 		self.textbuffer.insert(iter, "\n" + commit.id)
-		commit_time = "\n\n"+time.strftime("%c", self.commit.authored_date)
+		commit_time = "\n\n%s\n" % time.strftime("%c", self.commit.authored_date)
 		self.textbuffer.insert_with_tags_by_name(iter, commit_time, "c-time")
+		difftext = ""
+		for diff in commit.diff(commit.repo, commit):
+			difftext += diff.diff + "\n"
+		self.diffview.sourcebuffer.set_text(difftext)
 
 class App:
 	def __init__(self, gitdir=None):		
@@ -106,7 +129,7 @@ class App:
 			if not os.path.exists(image_path):
 				gravatar_url = "http://www.gravatar.com/avatar.php?"			
 				gravatar_url += urllib.urlencode({'gravatar_id':hashed, 
-													'size':str(40)})
+													'size':str(30)})
 				urllib.urlretrieve(gravatar_url, image_path)
 				urllib.urlcleanup()
 				
