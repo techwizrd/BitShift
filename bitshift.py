@@ -28,31 +28,38 @@ class BottomBar(gtk.HBox):
 	def main(self):
 		self.show_all()
 
-class CommitView(gtk.Frame):
+class CommitView(gtk.Notebook):
 	def __init__(self):
-		gtk.Frame.__init__(self)
-
+		gtk.Notebook.__init__(self)
+		self.set_show_tabs(False)
+		
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
 		
-		self.scrollbar = gtk.ScrolledWindow()
-		self.scrollbar.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+#		self.scrollbar = gtk.ScrolledWindow()
+#		self.scrollbar.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 #		self.scrollbar.add(self.vbox)
 #		self.add(self.scrollbar)
 		
-		self.commit_top = gtk.Label()
-		self.vbox.add(self.commit_top)
+		self.labels = []
+		for x in range(3):
+			self.labels.append(gtk.Label())
+			self.labels[x].set_line_wrap(True)
+			self.vbox.pack_start(self.labels[x], False, True, 0)
+			
+		self.labels[0].set_alignment(-1, 0.5)
+		self.labels[1].set_alignment(-1, 0.5)
 	
 	def set_commit(self, commit):
 		self.commit = commit
 		self.set_top()
 		
 	def set_top(self):
-		text = "<b>%s</b>\n" % self.commit.message
-		text += "<small>%s</small>" % self.commit.id
+		self.labels[0].set_markup("<b>%s</b>" % self.commit.message)
+		self.labels[1].set_markup("<small>%s</small>" % self.commit.id)
 		commit_time = time.strftime("%c", self.commit.authored_date)
-		text += "\n\n<big>%s</big>" % commit_time
-		self.commit_top.set_markup(text)
+		self.labels[2].set_markup("\n<u><big>%s</big></u>" % commit_time)
+#		self.commit_top.set_markup(text)
 		
 	def main(self):
 		self.show_all()
