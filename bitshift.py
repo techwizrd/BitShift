@@ -24,9 +24,6 @@ class BottomBar(gtk.HBox):
 	def populate_branches(self, repo):
 		for head in repo.branches:
 			self.branches.append_text(head.name)
-	
-	def main(self):
-		self.show_all()
 
 class CommitView(gtk.Notebook):
 	def __init__(self):
@@ -41,22 +38,15 @@ class CommitView(gtk.Notebook):
 			self.labels.append(gtk.Label())
 			self.labels[x].set_line_wrap(True)
 			self.vbox.pack_start(self.labels[x], False, True, 0)
-			
 		self.labels[0].set_alignment(-1, 0.5)
 		self.labels[1].set_alignment(-1, 0.5)
 	
 	def set_commit(self, commit):
 		self.commit = commit
-		self.set_top()
-		
-	def set_top(self):
 		self.labels[0].set_markup("<b>%s</b>" % self.commit.message)
 		self.labels[1].set_markup("<small>%s</small>" % self.commit.id)
 		commit_time = time.strftime("%c", self.commit.authored_date)
-		self.labels[2].set_markup("\n<u><big>%s</big></u>" % commit_time)
-		
-	def main(self):
-		self.show_all()
+		self.labels[2].set_markup("\n<u><i><big>%s</big></i></u>" % commit_time)
 
 class App:
 	def __init__(self, gitdir=None):		
@@ -75,16 +65,17 @@ class App:
 		self.hpaned.add(self.commitview)
 		self.hpaned.set_position(250)
 		
+		self.bottom_bar = BottomBar()
+		
 		self.gitdir = gitdir
 		if gitdir != None:
 			self.window.set_title("BitShift - " + os.path.abspath(self.gitdir))
 			self.populate_sidebar(self.gitdir)
+			self.bottom_bar.populate_branches(self.repo)
+			self.bottom_bar.branches.set_active(0)
 		else:
 			self.window.set_title("BitShift")
-		
-		self.bottom_bar = BottomBar()
-		self.bottom_bar.populate_branches(self.repo)
-		self.bottom_bar.branches.set_active(0)
+
 		self.vbox.pack_end(self.bottom_bar, False, False, 0)
 		
 		self.main()
@@ -99,7 +90,8 @@ class App:
 				text = "<b>%s ...</b>" % foo[0]
 			else:
 				text = "<b>%s</b>" % commit.message
-			text += "\n<small>by %s on %s</small>" % (commit.author, commit_time)
+			text += "\n<small>by %s on %s</small>" % (commit.author,
+														commit_time)
 			
 			hashed = hashlib.md5(commit.author.email).hexdigest()
 			image_path = "%s/grav_cache/%s.jpg" % (__thisdir__, hashed)
@@ -109,8 +101,10 @@ class App:
 													'size':str(40)})
 				urllib.urlretrieve(gravatar_url, image_path)
 				urllib.urlcleanup()
+				
+			image = gtk.gdk.pixbuf_new_from_file(image_path)
 
-			self.sidebar.add_item(None, [text, gtk.gdk.pixbuf_new_from_file(image_path)])
+			self.sidebar.add_item(None,	[text, image])
 	
 	def react_commit(self, treeview):
 		commit = self.commits[treeview.get_cursor()[0][0]]
@@ -133,7 +127,7 @@ class App:
 	def main(self):
 		self.window.connect("delete-event", gtk.main_quit)
 		self.sidebar.SBtreeview.connect("cursor-changed", self.react_commit)
-		self.bottom_bar.latest_b.connect("clicked", self.get_latest_commits)
+		#self.bottom_bar.latest_b.connect("clicked", self.get_latest_commits)
 		self.bottom_bar.branches.connect("changed", self.branch_changed)
 		self.window.show_all()
 
