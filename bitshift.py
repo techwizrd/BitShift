@@ -86,7 +86,7 @@ class App:
 		for commit in self.commits:
 			commit_time = time.strftime("%c", commit.authored_date)
 			foo = commit.message.split('\n')
-			if foo > 1:
+			if len(foo) > 1:
 				text = "<b>%s ...</b>" % foo[0]
 			else:
 				text = "<b>%s</b>" % commit.message
