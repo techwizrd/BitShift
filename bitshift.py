@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys, gtk, git, time, urllib, hashlib
+import os, sys, gtk, git, time, urllib, hashlib, pango
 
 from GtkSidebar import GtkSidebar
 
@@ -33,20 +33,28 @@ class CommitView(gtk.Notebook):
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
 		
-		self.labels = []
-		for x in range(3):
-			self.labels.append(gtk.Label())
-			self.labels[x].set_line_wrap(True)
-			self.vbox.pack_start(self.labels[x], False, True, 0)
-		self.labels[0].set_alignment(-1, 0.5)
-		self.labels[1].set_alignment(-1, 0.5)
-	
+		self.textbuffer = gtk.TextBuffer()
+		self.textview = gtk.TextView(self.textbuffer)
+		self.vbox.add(self.textview)
+		self.textbuffer.create_tag("c-message",
+									weight = pango.WEIGHT_BOLD,
+									wrap_mode = gtk.WRAP_WORD,
+#									size = pango.SCALE_LARGE
+									)
+#		self.textbuffer.create_tag("c-hash")
+		self.textbuffer.create_tag("c-time",
+								justification = gtk.JUSTIFY_CENTER,
+								style = pango.STYLE_ITALIC,
+								underline = pango.UNDERLINE_SINGLE)
+		
 	def set_commit(self, commit):
 		self.commit = commit
-		self.labels[0].set_markup("<b>%s</b>" % self.commit.message)
-		self.labels[1].set_markup("<small>%s</small>" % self.commit.id)
-		commit_time = time.strftime("%c", self.commit.authored_date)
-		self.labels[2].set_markup("\n<u><i><big>%s</big></i></u>" % commit_time)
+		self.textbuffer.set_text("")
+		iter = self.textbuffer.get_iter_at_offset (0)
+		self.textbuffer.insert_with_tags_by_name(iter, commit.message, "c-message")
+		self.textbuffer.insert(iter, "\n" + commit.id)
+		commit_time = "\n\n"+time.strftime("%c", self.commit.authored_date)
+		self.textbuffer.insert_with_tags_by_name(iter, commit_time, "c-time")
 
 class App:
 	def __init__(self, gitdir=None):		
