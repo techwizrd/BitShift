@@ -36,11 +36,6 @@ class CommitView(gtk.Notebook):
 		self.vbox = gtk.VBox()
 		self.add(self.vbox)
 		
-#		self.scrollbar = gtk.ScrolledWindow()
-#		self.scrollbar.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
-#		self.scrollbar.add(self.vbox)
-#		self.add(self.scrollbar)
-		
 		self.labels = []
 		for x in range(3):
 			self.labels.append(gtk.Label())
@@ -59,7 +54,6 @@ class CommitView(gtk.Notebook):
 		self.labels[1].set_markup("<small>%s</small>" % self.commit.id)
 		commit_time = time.strftime("%c", self.commit.authored_date)
 		self.labels[2].set_markup("\n<u><big>%s</big></u>" % commit_time)
-#		self.commit_top.set_markup(text)
 		
 	def main(self):
 		self.show_all()
@@ -74,14 +68,10 @@ class App:
 		self.window.add(self.vbox)
 		
 		self.hpaned = gtk.HPaned()
-#		self.vbox.pack_start(self.hpaned, False, False, 0)
 		self.vbox.add(self.hpaned)
-#		self.hpaned = gtk.HBox()
 		self.sidebar = GtkSidebar()
 		self.hpaned.add(self.sidebar)
 		self.commitview = CommitView()
-#		self.klabel = gtk.Label("Welcome to Legit")
-#		self.hpaned.add(self.klabel)
 		self.hpaned.add(self.commitview)
 		self.hpaned.set_position(250)
 		
@@ -124,7 +114,6 @@ class App:
 	
 	def react_commit(self, treeview):
 		commit = self.commits[treeview.get_cursor()[0][0]]
-		#self.klabel.set_label(commit.message)
 		self.commitview.set_commit(commit)
 	
 	def branch_changed(self, combobox):
