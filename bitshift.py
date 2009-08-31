@@ -1,10 +1,26 @@
 #!/usr/bin/env python
 
-import os, sys, gtk, git, time, urllib, hashlib, pango, gtksourceview
+try:
+	import os
+	import sys
+	import gtk
+	import git
+	import time
+	import urllib
+	import hashlib
+	import pango
+	import gtksourceview
+except ImportError, e:
+	print "%s not found!" % e
+	raise SystemExit
+except Exception, e:
+	print str(e)
+	raise SystemExit
 
 from GtkSidebar import GtkSidebar
 
 __thisdir__ = os.path.abspath(os.path.dirname(__file__))
+__version__ = "0.01a"
 
 class BottomBar(gtk.HBox):
 	def __init__(self):
@@ -16,7 +32,7 @@ class BottomBar(gtk.HBox):
 		self.previous_b = gtk.Button("Previous", gtk.STOCK_GO_BACK)
 		
 		self.pack_start(self.previous_b, False, False, 0)
-		self.pack_start(self.latest_b, False, False, 0)
+		#self.pack_start(self.latest_b, False, False, 0)
 		self.pack_start(self.next_b, False, False, 0)
 		self.pack_end(self.branches, False, False, 0)
 		self.pack_end(self.branches_l, False, False, 0)
@@ -40,27 +56,20 @@ class DiffView(gtk.ScrolledWindow):
 		self.sourceview.set_editable(False)
 		self.add(self.sourceview)
 
-class CommitView(gtk.Notebook):
+class CommitView(gtk.VBox):
 	def __init__(self):
-		gtk.Notebook.__init__(self)
-		self.set_show_tabs(False)
-		
-		self.vbox = gtk.VBox()
-		self.add(self.vbox)
+		gtk.VBox.__init__(self)
 		
 		self.textbuffer = gtk.TextBuffer()
 		self.textview = gtk.TextView(self.textbuffer)
 		self.textview.set_editable(False)
-		self.vbox.pack_start(self.textview, False, False, 0)
+		self.pack_start(self.textview, False, False, 0)
 		self.diffview = DiffView()
-		self.vbox.pack_end(self.diffview, True, True, 0)
+		self.pack_end(self.diffview, True, True, 0)
 		
 		self.textbuffer.create_tag("c-message",
 									weight = pango.WEIGHT_BOLD,
-									wrap_mode = gtk.WRAP_WORD,
-#									size = pango.SCALE_LARGE
-									)
-#		self.textbuffer.create_tag("c-hash")
+									wrap_mode = gtk.WRAP_WORD,)
 		self.textbuffer.create_tag("c-time",
 								justification = gtk.JUSTIFY_CENTER,
 								style = pango.STYLE_ITALIC,
@@ -68,15 +77,27 @@ class CommitView(gtk.Notebook):
 		
 	def set_commit(self, commit):
 		self.commit = commit
+		self.set_commit_info(commit)
+		self.set_diff_text(commit)
+	
+	def set_commit_info(self, commit):
 		self.textbuffer.set_text("")
 		iter = self.textbuffer.get_iter_at_offset (0)
-		self.textbuffer.insert_with_tags_by_name(iter, commit.message, "c-message")
+
+		self.textbuffer.insert_with_tags_by_name(iter,
+												commit.message,
+												"c-message")
 		self.textbuffer.insert(iter, "\n" + commit.id)
-		commit_time = "\n\n%s\n" % time.strftime("%c", self.commit.authored_date)
+		commit_time = "\n\n%s\n" % time.strftime("%c",
+												self.commit.authored_date)
 		self.textbuffer.insert_with_tags_by_name(iter, commit_time, "c-time")
-		difftext = ""
-		for diff in commit.diff(commit.repo, commit):
-			difftext += diff.diff + "\n"
+
+	def set_diff_text(self, commit):
+#		difftext = ""
+#		for diff in commit.diff(commit.repo, commit):
+#			difftext += diff.diff + "\n"
+		diff_list = commit.diff(commit.repo, commit)
+		difftext = diff_list[len(diff_list)-1].diff
 		self.diffview.sourcebuffer.set_text(difftext)
 
 class App:
@@ -85,34 +106,91 @@ class App:
 		self.window.set_size_request(700,500)
 		self.window.set_position(gtk.WIN_POS_CENTER)
 		
-		self.vbox = gtk.VBox(False, 0)
-		self.window.add(self.vbox)
-		
-		self.hpaned = gtk.HPaned()
-		self.vbox.add(self.hpaned)
-		self.sidebar = GtkSidebar()
-		self.hpaned.add(self.sidebar)
-		self.commitview = CommitView()
-		self.hpaned.add(self.commitview)
-		self.hpaned.set_position(250)
-		
-		self.bottom_bar = BottomBar()
-		
-		self.gitdir = gitdir
+		self.initialize_menus()
+		self.initialize_ui()
+
 		if gitdir != None:
-			self.window.set_title("BitShift - " + os.path.abspath(self.gitdir))
-			self.populate_sidebar(self.gitdir)
-			self.bottom_bar.populate_branches(self.repo)
-			self.bottom_bar.branches.set_active(0)
+			self.set_gitdir(gitdir)
 		else:
 			self.window.set_title("BitShift")
-
-		self.vbox.pack_end(self.bottom_bar, False, False, 0)
 		
 		self.main()
 	
-	def populate_sidebar(self, gitdir, branch = 'master', count = 100):
-		self.repo = git.Repo(gitdir)
+	def initialize_ui(self):
+		self.vbox = gtk.VBox(False, 0)
+		self.window.add(self.vbox)
+		self.vbox.pack_start(self.menubar, False, False, 0)
+		self.hpaned = gtk.HPaned()
+		self.vbox.add(self.hpaned)
+		self.sidebar = GtkSidebar()
+		self.hpaned.add(self.sidebar.SBscrollbar)
+		self.commitview = CommitView()
+		self.hpaned.add(self.commitview)
+		self.hpaned.set_position(250)
+		self.bottom_bar = BottomBar()
+		self.vbox.pack_end(self.bottom_bar, False, False, 0)
+	
+	def initialize_menus(self):
+		self.uimanager = gtk.UIManager()
+		self.menuString = """<ui>
+	<menubar name="MenuBar">
+		<menu action="File">
+			<menuitem action="Open"/>
+			<separator name="sep3"/>
+			<menuitem action="Quit"/>
+		</menu>
+		<menu action="Help">
+			<menuitem action="About"/>
+		</menu>
+	</menubar>
+</ui>"""
+		try:
+			self.uimanager.add_ui_from_string(self.menuString)
+			self.actiongroup = gtk.ActionGroup('BitShift')
+			self.actiongroup.add_actions([
+										('Open', gtk.STOCK_OPEN, 'Open', None,
+										"Open a File", self.open_repo),
+										('Quit', gtk.STOCK_QUIT, '_Quit', None,
+										 'Quit', gtk.main_quit),
+										('File',None, '_File'),
+										('About', gtk.STOCK_ABOUT,
+										'_About', None,
+										'About', self.show_about_dialog),
+										('Help', None, '_Help')
+										])
+			self.uimanager.insert_action_group(self.actiongroup, 0)
+			self.window.add_accel_group(self.uimanager.get_accel_group())
+		except:
+			print "menubar could not be initialized"
+			raise SystemExit
+		self.menubar = self.uimanager.get_widget("/MenuBar")
+	
+	def set_gitdir(self, gitdir):
+		try:
+			repo = git.Repo(gitdir)
+		except git.InvalidGitRepositoryError:
+				error_dialog = gtk.MessageDialog(parent=self.window,
+									flags=0, type=gtk.MESSAGE_ERROR,
+									buttons=gtk.BUTTONS_OK,
+									message_format="Invalid Git Repository")
+				stext = "%s is not a Git repository." % gitdir
+				error_dialog.format_secondary_text(stext)
+				response = error_dialog.run()
+				if response == gtk.RESPONSE_OK:
+					error_dialog.destroy()
+					self.open_repo()
+					return
+				else:
+					error_dialog.destroy()
+					return
+		self.gitdir = gitdir
+		self.repo = repo
+		self.populate_sidebar()
+		self.bottom_bar.populate_branches(self.repo)
+		self.bottom_bar.branches.set_active(0)	
+		self.window.set_title("BitShift - " + os.path.abspath(self.gitdir))
+	
+	def populate_sidebar(self, branch = 'master', count = 50):
 		self.commits = self.repo.commits(branch, max_count = count)
 		for commit in self.commits:
 			commit_time = time.strftime("%c", commit.authored_date)
@@ -121,11 +199,13 @@ class App:
 				text = "<b>%s ...</b>" % foo[0]
 			else:
 				text = "<b>%s</b>" % commit.message
+
 			text += "\n<small>by %s on %s</small>" % (commit.author,
 														commit_time)
 			
 			hashed = hashlib.md5(commit.author.email).hexdigest()
 			image_path = "%s/grav_cache/%s.jpg" % (__thisdir__, hashed)
+			
 			if not os.path.exists(image_path):
 				gravatar_url = "http://www.gravatar.com/avatar.php?"			
 				gravatar_url += urllib.urlencode({'gravatar_id':hashed, 
@@ -136,6 +216,30 @@ class App:
 			image = gtk.gdk.pixbuf_new_from_file(image_path)
 
 			self.sidebar.add_item(None,	[text, image])
+	
+	def open_repo(self, widget=None):
+		fc = gtk.FileChooserDialog(title='Open Git Repository...',
+									parent=self.window,
+									action=gtk.FILE_CHOOSER_ACTION_SELECT_FOLDER,
+									buttons=(gtk.STOCK_CANCEL,
+										gtk.RESPONSE_CANCEL,
+										gtk.STOCK_OPEN,
+										gtk.RESPONSE_OK))
+		fc.set_default_response(gtk.RESPONSE_OK)
+		fc.run()
+		if True:
+			filedir = fc.get_filename()
+		fc.destroy()
+		self.set_gitdir(filedir)
+		
+	def show_about_dialog(self, widget):
+		about = gtk.AboutDialog()
+		about.set_name("KatByte")
+		about.set_program_name("KatByte")
+		about.set_version(__version__)
+		about.set_comments("BitShift is a graphical Git client")
+		about.set_copyright(u"Copyright (c) 2009 techwizrd")
+		about.show_all()
 	
 	def react_commit(self, treeview):
 		commit = self.commits[treeview.get_cursor()[0][0]]

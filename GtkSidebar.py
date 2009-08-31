@@ -12,7 +12,6 @@ class GtkSidebar(gtk.Frame):
         self.SBscrollbar = gtk.ScrolledWindow()
         self.SBscrollbar.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
 
-#        self.SBstore = gtk.TreeStore(str, str)
         self.SBstore = gtk.TreeStore(str, gtk.gdk.Pixbuf)
         self.SBtreeview = gtk.TreeView(self.SBstore)
 
@@ -25,8 +24,6 @@ class GtkSidebar(gtk.Frame):
         self.SBcolumn.pack_start(self.SBcell0, False)
         self.SBcolumn.pack_start(self.SBcell1, True)
 
-        # set the cell attributes to the appropriate liststore column
-        # GTK+ 2.0 doesn't support the "stock_id" property
         if gtk.gtk_version[1] < 2:
             self.SBcolumn.set_cell_data_func(self.SBcell0, self.make_pb)
         else:
@@ -35,11 +32,10 @@ class GtkSidebar(gtk.Frame):
 
         self.SBtreeview.set_search_column(0)
         self.SBcolumn.set_sort_column_id(0)
-#        self.SBtreeview.set_reorderable(True)
         
         self.SBtreeview.set_headers_visible(False)
 
-        self.add(self.SBscrollbar)
+       # self.add(self.SBscrollbar)
         self.SBscrollbar.add(self.SBtreeview)
 
     def add_item(self, parent, stuff):
