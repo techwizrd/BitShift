@@ -1,26 +1,82 @@
 #!/usr/bin/env python
 
-try:
-	import os
-	import sys
-	import gtk
-	import git
-	import time
-	import urllib
-	import hashlib
-	import pango
-	import gtksourceview
-except ImportError, e:
-	print "%s not found!" % e
-	raise SystemExit
-except Exception, e:
-	print str(e)
-	raise SystemExit
+import os
+import sys
+import gtk
+import git
+import time
+import urllib
+import hashlib
+import pango
+import gtksourceview
 
-from GtkSidebar import GtkSidebar
-
-__thisdir__ = os.path.abspath(os.path.dirname(__file__))
+installdir = os.path.abspath(os.path.dirname(__file__))
 __version__ = "0.01a"
+
+class GtkSidebar(gtk.Frame):
+    __gtype_name = 'GtkSidebar'
+    def __init__(self):
+        gtk.Frame.__init__(self)
+
+        self.SBscrollbar = gtk.ScrolledWindow()
+        self.SBscrollbar.set_policy(gtk.POLICY_AUTOMATIC, gtk.POLICY_AUTOMATIC)
+
+        self.SBstore = gtk.TreeStore(str, gtk.gdk.Pixbuf)
+        self.SBtreeview = gtk.TreeView(self.SBstore)
+
+        self.SBcolumn = gtk.TreeViewColumn('Pixbuf and Text')
+        self.SBtreeview.append_column(self.SBcolumn)
+
+        self.SBcell0 = gtk.CellRendererPixbuf()
+        self.SBcell1 = gtk.CellRendererText()
+
+        self.SBcolumn.pack_start(self.SBcell0, False)
+        self.SBcolumn.pack_start(self.SBcell1, True)
+
+        if gtk.gtk_version[1] < 2:
+            self.SBcolumn.set_cell_data_func(self.SBcell0, self.make_pb)
+        else:
+            self.SBcolumn.set_attributes(self.SBcell0, pixbuf=1)#stock_id=1)
+        self.SBcolumn.set_attributes(self.SBcell1, markup=0)
+
+        self.SBtreeview.set_search_column(0)
+        self.SBcolumn.set_sort_column_id(0)
+        
+        self.SBtreeview.set_headers_visible(False)
+
+       # self.add(self.SBscrollbar)
+        self.SBscrollbar.add(self.SBtreeview)
+
+    def add_item(self, parent, stuff):
+    	"""Add items to the model. If adding a large amount of items, decouple
+    	first, add the items, and then recouple it."""
+        return self.SBstore.append(parent, stuff)
+    
+    def decouple(self):
+    	"""Used for decoupling the model. This is useful when adding large
+    	amounts of rows, as you do not need to wait for each addition to
+    	update the TreeView. Just remember to call recouple() afterwards."""
+    	self.SBtreeview.set_model(None)
+    
+    def recouple(self):
+    	"""Used for recoupling the model. This is useful when adding large
+    	amounts of rows, as you do not need to wait for each addition to
+    	update the TreeView."""
+    	self.SBtreeview.set_model(self.SBstore)
+    
+    def make_pb(self, tvcolumn, cell, model, iter):
+        stock = model.get_value(iter, 1)
+        pb = self.SBtreeview.render_icon(stock, gtk.ICON_SIZE_MENU, None)
+        cell.set_property('pixbuf', pb)
+        return
+    
+    def get_store(self):
+    	return self.SBstore
+    	
+    def clear(self):
+    	self.decouple()
+    	self.SBstore.clear()
+    	self.recouple()
 
 class BottomBar(gtk.HBox):
 	def __init__(self):
@@ -78,7 +134,7 @@ class CommitView(gtk.VBox):
 	def set_commit(self, commit):
 		self.commit = commit
 		self.set_commit_info(commit)
-		self.set_diff_text(commit)
+		self.set_diff_text(self.commit)
 	
 	def set_commit_info(self, commit):
 		self.textbuffer.set_text("")
@@ -97,8 +153,10 @@ class CommitView(gtk.VBox):
 #		for diff in commit.diff(commit.repo, commit):
 #			difftext += diff.diff + "\n"
 		diff_list = commit.diff(commit.repo, commit)
-		difftext = diff_list[len(diff_list)-1].diff
-		self.diffview.sourcebuffer.set_text(difftext)
+		if diff_list != []:
+#			difftext = diff_list[-1].diff
+#			self.diffview.sourcebuffer.set_text(difftext)
+			self.diffview.sourcebuffer.set_text(diff_list[-1].diff)
 
 class App:
 	def __init__(self, gitdir=None):		
@@ -194,9 +252,9 @@ class App:
 		self.commits = self.repo.commits(branch, max_count = count)
 		for commit in self.commits:
 			commit_time = time.strftime("%c", commit.authored_date)
-			foo = commit.message.split('\n')
-			if len(foo) > 1:
-				text = "<b>%s ...</b>" % foo[0]
+			parts = commit.message.split('\n')
+			if len(parts) > 1:
+				text = "<b>%s ...</b>" % parts[0]
 			else:
 				text = "<b>%s</b>" % commit.message
 
@@ -204,7 +262,7 @@ class App:
 														commit_time)
 			
 			hashed = hashlib.md5(commit.author.email).hexdigest()
-			image_path = "%s/grav_cache/%s.jpg" % (__thisdir__, hashed)
+			image_path = "%s/grav_cache/%s.jpg" % (installdir, hashed)
 			
 			if not os.path.exists(image_path):
 				gravatar_url = "http://www.gravatar.com/avatar.php?"			
@@ -267,8 +325,8 @@ class App:
 		self.window.show_all()
 
 if __name__ == "__main__":
-	if not os.path.exists("%s/grav_cache" % __thisdir__):
-		os.mkdir("%s/grav_cache" % __thisdir__)
+	if not os.path.exists("%s/grav_cache" % installdir):
+		os.mkdir("%s/grav_cache" % installdir)
 	if len(sys.argv) < 2:
 		gitdir = None
 	else:
